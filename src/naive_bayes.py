@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
-from sklearn.svm import SVR
+from sklearn.naive_bayes import GaussianNB
 
 __author__="Ashwin Mishra"
 
@@ -16,11 +16,18 @@ def load_data():
 
 def label_encoder(train, test):
     lbl = preprocessing.LabelEncoder()
-    strings = ['product_title', 'search_term', 'product_description']#, 'name', 'value']
+    #strings = ['product_title', 'search_term', 'product_description', 'name']#, 'value']
+    strings = ['product_title', 'search_term', 'value']#, 'value']
+    
     for word in strings:
+        print "Encoding " + str(word)
         lbl.fit(list(train[word].values) + list(test[word].values))
         train[word] = lbl.transform(train[word].values)
         test[word] = lbl.transform(test[word].values)
+    
+    train = train.drop('name', axis=1)
+    test = test.drop('name', axis=1)
+
     return train, test
 
 def join_pdesc(train, test, pdesc):
@@ -39,7 +46,7 @@ def set_labels(train):
     return labels, train
 
 def train_model(train, test, labels):
-    clf = SVR(C=1.0, epsilon=0.2)
+    clf = GaussianNB()
     clf.fit(train, labels)
     print "Good!"
     predictions = clf.predict(test)
@@ -52,20 +59,25 @@ def train_model(train, test, labels):
 if __name__== '__main__':
     train, test, pdesc, atts = load_data()
     print "Joining product description and product attributes ..."
-    train, test = join_pdesc(train, test, pdesc)
-    #train, test = join_att(train, test, atts)
+    #train, test = join_pdesc(train, test, pdesc)
+    train, test = join_att(train, test, atts)
+    print "Train data size/shape"
+    print train.shape
+    print train.columns
+    
+    print "Printing labels ..."
     labels, train = set_labels(train)
 
     #Label encoding
     print "Label encoding ..."
+    print train.head(2)
+    print test.head(2)
+    
     train, test = label_encoder(train, test)
-
     print "Storing labelled data ..."
     train.to_csv("../data/output/Labelled_train.csv",index=False)
     test.to_csv("../data/output/Labelled_test.csv",index=False)
-    print "Train data size/shape"
-    print train.shape
-    print train.columns
+
     
     print "Label data size/shape"
     print labels.shape
@@ -74,7 +86,7 @@ if __name__== '__main__':
     print test.shape
     print test.columns
 
-    print "Learning SVM model ... "
+    print "Learning Naive bayes model ... "
     predictions = train_model(train, test, labels)
     predictions.to_csv("../data/output/predictions.csv",index=False, quotes=True)
     print predictions.head(5)
