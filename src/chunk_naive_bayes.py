@@ -1,4 +1,5 @@
 #!/bin/python
+import os
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
@@ -6,13 +7,30 @@ from sklearn.naive_bayes import GaussianNB
 
 __author__="Ashwin Mishra"
 
-def load_data():
+def get_file_list(arg):
+    if (arg == 'train'):
+        filelist = os.listdir("../data/output/CHUNKS/")
+        filelist = [ "../data/output/CHUNKS/" + str(x) for x in filelist]#filelist.apply(lambda x: "../data/output/CHUNKS/" + str(x))
+    if (arg == 'test'):
+        filelist = os.listdir("../data/output/TEST_CHUNKS/")
+        filelist = [ "../data/output/TEST_CHUNKS/" + str(x) for x in filelist]#filelist.apply(lambda x: "../data/output/CHUNKS/" + str(x))
+    return filelist
+
+
+def load_data(arg):
     # "id","product_uid","product_title","search_term","relevance"
-    train = pd.read_csv("../data/input/train.csv", dtype = {"id":np.int64,"product_uid":np.int64,"product_title":str,"search_term":str,'relevance':np.float64}, sep=',')
-    test = pd.read_csv("../data/input/test.csv", dtype = {"id":np.int64,"product_uid":np.int64,"product_title":str,"search_term":str}, sep = ',')
-    description = pd.read_csv("../data/input/product_descriptions.csv",sep = ",", dtype = {"id":np.int64,"product_description":str})
-    atts = pd.read_csv("../data/input/attributes.csv",sep = ",", dtype = {"id":np.int64,"name":str,"value":str})
-    return train, test, description, atts
+    filelist = get_file_list(arg)
+    print filelist
+    if (arg == "train"):
+        df_list = [pd.read_csv(file,dtype = {"id":np.int64,"product_uid":np.int64,"product_title":str,"search_term":str,"relevance":np.float64,"total_sum":np.int64}) for file in filelist]
+    if (arg == "test"):
+        df_list = [pd.read_csv(file,dtype = {"id":np.int64,"product_uid":np.int64,"product_title":str,"search_term":str,"total_sum":np.int64}) for file in filelist]
+
+    df = pd.concat(df_list)
+    print df.head()
+    #description = pd.read_csv("../data/input/product_descriptions.csv",sep = ",", dtype = {"id":np.int64,"product_description":str})
+    #atts = pd.read_csv("../data/input/attributes.csv",sep = ",", dtype = {"id":np.int64,"name":str,"value":str})
+    return df
 
 def label_encoder(train, test):
     lbl = preprocessing.LabelEncoder()
@@ -52,13 +70,33 @@ def train_model(train, test, labels):
     predictions = clf.predict(test)
     print predictions.shape
     predictions = pd.DataFrame(predictions, columns = ['relevance'])
-    predictions = pd.concat([test['id'],predictions], axis=1)
+    print "Good again!"
+    print "Predictions head -------"
+    print predictions.head()
+    print predictions.shape
+    print "TEST head -------"
+    print test.head()
+    print test.shape
+    test['id'].to_csv("TEST_TEST.csv",index=False)
+    predictions.to_csv("PREDICTIONS.csv",index=False)
+    #test = test.reset_index()
+    #predictions = predictions.reset_index()
+    #test = test.groupby(level=0).first()
+    #predictions = predictions.groupby(level=0).first()
+    predictions = pd.concat([test['id'],predictions], axis=1, verify_integrity=False)
     print predictions
     return predictions
 
 if __name__== '__main__':
-    train, test, pdesc, atts = load_data()
-    #print "Joining product description and product attributes ..."
+    print "Loading train data"
+    train = load_data("train")
+    print "Loading test data"
+    test = load_data("test")
+        #print "Joining product description and product attributes ..."
+    train = train.sort_index(by=['id'], ascending=True)
+    test = test.sort_index(by=['id'], ascending=True)
+    train = train.reset_index()
+    test = test.reset_index()
     print "Naive run without any joins ..."
     #train, test = join_pdesc(train, test, pdesc)
     #train, test = join_att(train, test, atts)
