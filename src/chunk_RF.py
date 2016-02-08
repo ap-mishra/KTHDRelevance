@@ -1,5 +1,6 @@
 #!/bin/python
 import os
+import re
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
@@ -9,6 +10,27 @@ from sklearn.ensemble import BaggingRegressor
 from sklearn.svm import SVR
 
 __author__="Ashwin Mishra"
+
+def wordcount(value):
+    # Find all non-whitespace patterns.
+    list = re.findall("(\S+)", value)
+    # Return length of resulting list.
+    return len(list)
+
+def add_wordcount_search_term(df):
+    df['search_term_count'] = df['search_term'].apply(lambda x: len(x.split(" ")))
+    return df
+def add_wordcount_product_title(df):
+    df['product_title_count'] = df['product_title'].apply(lambda x: len(x.split(" ")))
+    return df
+
+def add_pctmatch_search_term(df):
+    df['search_term_pctmatch'] = df['total_sum']/df['search_term_count']
+    return df
+
+def add_pctmatch_product_title(df):
+    df['product_title_pctmatch'] = df['total_sum']/df['product_title_count']
+    return df
 
 def get_file_list(arg):
     if (arg == 'train'):
@@ -68,6 +90,7 @@ def set_labels(train):
 
 def train_model(train, test, labels):
     rf = RandomForestRegressor(n_estimators=15, max_depth=6, random_state=0)
+    #rf = RandomForestRegressor(n_estimators=45, max_depth=9, random_state=10)
     clf = BaggingRegressor(rf, n_estimators=45, max_samples=0.1, random_state=25)
     clf.fit(train, labels)
     #clf = SVR(C=1.0, epsilon=0.2)
@@ -103,6 +126,23 @@ if __name__== '__main__':
         #print "Joining product description and product attributes ..."
     train = train.sort_index(by=['id'], ascending=True)
     test = test.sort_index(by=['id'], ascending=True)
+    
+    #Adding new feature.
+    train = add_wordcount_search_term(train)
+    test = add_wordcount_search_term(test)
+
+    #Adding new feature.
+    train = add_pctmatch_search_term(train)
+    test = add_pctmatch_search_term(test)
+    
+    #Adding new feature.
+    train = add_wordcount_product_title(train)
+    test = add_wordcount_product_title(test)
+
+    #Adding new feature.
+    train = add_pctmatch_product_title(train)
+    test = add_pctmatch_product_title(test)
+    
     train = train.reset_index()
     test = test.reset_index()
     print "Naive run without any joins ..."
