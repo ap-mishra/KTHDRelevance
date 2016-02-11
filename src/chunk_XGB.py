@@ -1,4 +1,5 @@
 #!/bin/python
+import xgboost as xgb
 import os
 import re
 import pandas as pd
@@ -87,16 +88,48 @@ def set_labels(train):
     return labels, train
 
 def train_model(train, test, labels):
-    rf = RandomForestRegressor(n_estimators=15, max_depth=6, random_state=10)
+    #rf = RandomForestRegressor(n_estimators=15, max_depth=6, random_state=10)
     #rf = RandomForestRegressor(n_estimators=45, max_depth=9, random_state=10)
-    clf = BaggingRegressor(rf, n_estimators=45, max_samples=0.2, random_state=25)
-    clf.fit(train, labels)
+    #clf = BaggingRegressor(rf, n_estimators=45, max_samples=0.2, random_state=25)
+    #clf.fit(train, labels)
+    
+    param = {}
+    # use softmax multi-class classification
+    param['objective'] = 'multi:softmax'
+    # scale weight of positive examples
+    param['eta'] = 0.1
+    param['max_depth'] = 6
+    param['silent'] = 1
+    param['nthread'] = 4
+    #param['num_class'] = 1643820
+    param['num_class'] = 749
+    
+    plst = list(param.items())
+
+    xg_train = xgb.DMatrix(train, label=labels)
+    xg_test = xgb.DMatrix(test)
+    
+    '''
+    xgtrain = xgb.DMatrix(tr, label=labels_log)
+    xgtest = xgb.DMatrix(te)
+    
+    num_rounds = 120
+    model = xgb.train(plst, xgtrain, num_rounds)
+    '''
+    
+    num_round = 50
+    watchlist = [ (xg_train,'train'), (xg_test, 'test') ]
+    
+    #bst = xgb.train(plst, xg_train, num_round, watchlist)
+    bst = xgb.train(param, xg_train, num_round);
+    # get prediction
+    predictions = bst.predict(xg_test);
+
     #clf = SVR(C=1.0, epsilon=0.2)
     #clf.fit(train, labels)
     #clf = GaussianNB()
     #clf.fit(train, labels)
     print "Good!"
-    predictions = clf.predict(test)
     print predictions.shape
     predictions = pd.DataFrame(predictions, columns = ['relevance'])
     print "Good again!"
